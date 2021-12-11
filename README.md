@@ -2,6 +2,8 @@
 This repository contains the code for **Movie Recommender** app built as part of CS598 Practical Statistical Learning Course in Fall of 2021.
 This was solo project undertaken by ameed2@illinois.edu.
 
+A working version of this app is hosted on shinyapps at https://ameed2.shinyapps.io/MovieRecommender/
+
 # Workflows
 The application has 2 workflows
 1. Movie recommendation based on user selected genre
@@ -16,5 +18,5 @@ The app is based on Shiny web app framework from R Studio. This app is based on 
 We have implemented 2 recommender algorithms. One genre based recommendation and second based on collobartive filtering algorithms. We use User Based Collaborative filtering algorithm. We use UCBF implementation from ```recommderlab``` R package. All the code for recommendation can be found in ```recommder.R```. A detailed evaluation of these algorithms is presented this [R markdown](link) file.
 
 # Credits
-1. [ShinyRatingInput](https://github.com/stefanwilhelm/ShinyRatingInput)
-2. [shinyJS](https://github.com/daattali/shinyjs)
+1. https://github.com/stefanwilhelm/ShinyRatingInput
+2. https://github.com/daattali/shinyjs

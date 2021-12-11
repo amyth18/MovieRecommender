@@ -1,0 +1,528 @@
+---
+title: "Recommender Systems Evaluation"
+author: "Ameet Deulgaonkar"
+email: "ameetd2@illinois.edu"
+date: "10/12/2021"
+output: 
+  html_document:
+    number_sections: true
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r echo=TRUE}
+library(dplyr)
+library(ggplot2)
+library(recommenderlab)
+library(DT)
+library(data.table)
+library(reshape2)
+library(tidyr)
+```
+
+# Load Data
+
+## Load Ratings Data
+
+```{r echo=TRUE}
+# use colClasses = 'NULL' to skip columns? what does this mean?
+ratings = read.csv('data/ratings.dat',
+                   sep = ':',
+                   colClasses = c('integer', 'NULL'), 
+                   header = FALSE)
+colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
+head(ratings)
+```
+
+## Load Movies Data
+
+This code is taken as is from the sample data exploratory code provided
+by the professor.
+
+```{r echo=TRUE}
+movies = readLines('data/movies.dat')
+movies = strsplit(movies, split = "::", fixed = TRUE, useBytes = TRUE)
+movies = matrix(unlist(movies), ncol = 3, byrow = TRUE)
+movies = data.frame(movies, stringsAsFactors = FALSE)
+colnames(movies) = c('MovieID', 'Title', 'Genres')
+movies$MovieID = as.integer(movies$MovieID)
+
+# convert accented characters
+movies$Title[73]
+movies$Title = iconv(movies$Title, "latin1", "UTF-8")
+movies$Title[73]
+
+# extract year
+movies$Year = as.numeric(unlist(
+  lapply(movies$Title, function(x) substr(x, nchar(x)-4, nchar(x)-1))))
+
+head(movies)
+```
+
+Here we make an important transformation to the movies data, the "Genres" column contains a list of genres separated by "|", we create an expanded version of movies dataset in which we have a separate entry for each genre the movie belongs to as follows:
+
+```{r echo=TRUE}
+movies_expanded = movies %>% separate_rows(Genres, sep = '[|]')
+# Now the entries look like this for each movie (e.g. for MovieID == 1)
+movies_expanded[which(movies_expanded$MovieID == 1),]
+```
+
+
+## Load Users Data
+
+```{r echo=TRUE}
+users = read.csv('data/users.dat', sep = ':', header = FALSE)
+users = users[, -c(2,4,6,8)] # skip columns
+colnames(users) = c('UserID', 'Gender', 'Age', 'Occupation', 'Zip-code')
+head(users)
+```
+
+# System I: Recommendation Based on Genre
+
+## Approach 1 (based on popularity)
+
+Our first approach is to recommend the most "popular" movies in a given genre. 
+Where "popular" means the number of times a movie is rated i.e number of entries 
+for a movie in the ratings dataset. Movie A is considered more popular than B 
+if A has more entries in the ratings dataset than B.
+
+We do this in the following in the following way.
+
+First, we compute the number of ratings for each movie i.e. number of times the
+movie was rated as follows:
+
+```{r echo=TRUE}
+movies_rating_count = 
+  ratings %>% 
+    group_by(MovieID) %>%
+      summarize(NoOfRatings = n())
+
+head(movies_rating_count)
+```
+Now, we join the <i>movies_rating_count</i> with <i>movies_expanded</i> and group the rows by Genre and arrange the rows with the group in descending order or rating count. This should give us most rated movies for each genre.
+
+```{r echo=TRUE}
+popular_movies_by_genre =
+  movies_expanded %>%
+    inner_join(movies_rating_count, by = 'MovieID') %>%
+      group_by(Genres) %>%
+        arrange(desc(NoOfRatings), .by_group = TRUE)
+```
+
+Now, we make top#5 movie recommendations based on user's preference of genre as follows:
+
+```{r echo=TRUE}
+# Top #5 movie recommendation for Drama
+
+user_genre_preference = "Drama"
+popular_movies_by_genre[which(popular_movies_by_genre$Genres == user_genre_preference),][1:5, c('Title', 'NoOfRatings')]
+```
+
+```{r echo=TRUE}
+# Top #5 movie recommendation for Comedy
+
+user_genre_preference = "Comedy"
+popular_movies_by_genre[which(popular_movies_by_genre$Genres == user_genre_preference),][1:5, c('Title', 'NoOfRatings')]
+```
+
+## Approach 2 (based on highest rated movies)
+In this approach we use the F1 score to rank the movies within a genre. Movie A is considered having higher rating than B if A's F1 score is greater than B's. F1 score is calculated as follows:
+
+First we compute the following summary statistics for each movie from the ratings data set
+
+1. Number of ratings for a movie.
+
+2. Average rating of the movie (mean).
+
+Then we use these summary statistics to compute the F1 Score for each Movie. F1 Score is a far more robust statistic as compared to a simple average of ratings because it is a harmonic mean of average rating and number of ratings. This helps in preventing scenarios where there are only handful reviews for a movie but all very high (say 5) from dominating our recommendation list.
+
+For a movie to be rated high it needs have both high average count and high 
+number of ratings. F1 score is given by following formula
+
+$$F_{1} Score = \frac{2 * NoOfRatings * AvgRating}{NoOfRatings + AvgRating}$$
+
+
+```{r echo=TRUE}
+movies_f1score = 
+  ratings %>% 
+    group_by(MovieID) %>%
+      summarize(NoOfRatings = n(), AvgRating = mean(Rating)) %>%
+        mutate(F1Score = ((2*NoOfRatings*AvgRating)/(NoOfRatings+AvgRating)))
+          
+head(movies_f1score)
+```
+
+We join the <i>movies_f1score</i> with <i>movies_expanded</i> and group the records by Genre
+and order the movies in the group in descending order by F1Score to get the 
+highest rated movies in each genre.
+
+```{r echo=TRUE}
+highest_rated_movies_by_genre =
+  movies_expanded %>%
+    inner_join(movies_f1score, by = 'MovieID') %>%
+      group_by(Genres) %>%
+        arrange(desc(F1Score), .by_group = TRUE) %>%
+          select(c("Genres", "MovieID", "Title", "NoOfRatings", "AvgRating", "F1Score"))
+
+head(highest_rated_movies_by_genre)
+```
+Now, we make top#5 movie recommendations based on highest rated movies 
+(based on F1 score) for user preferred genre as follows:
+
+```{r echo=TRUE}
+# Top 5 recommendations for Drama.
+
+user_genre_preference = "Drama"
+highest_rated_movies_by_genre[which(highest_rated_movies_by_genre$Genres == 
+                                    user_genre_preference),][1:5, c('Title', 'F1Score')]
+```
+
+
+```{r echo=TRUE}
+# Top 5 recommendations for Comedy
+
+user_genre_preference = "Comedy"
+highest_rated_movies_by_genre[which(highest_rated_movies_by_genre$Genres == 
+                                    user_genre_preference),][1:5, c('Title', 'F1Score')]
+```
+
+# System II: Collaborative Filtering Algorithms
+
+## CF Algorithm 1: User Based Collobaritive Filtering
+
+The first collaborative algorithm we review in this report is User Based Collaborative
+Filtering (UBCF). It belongs to a class of algorithms that looks only at use<->item 
+interactions (i.e user's ratings of items) instead of the content of either user or item.
+
+UBCF predicts the active user $U_a$'s rating for a new item as follows:
+
+1. First, we compute a user to items rating matrix $R$, a $N$x$I$ matrix, where $N$ is a number of unique users and $I$ is number if unique items in the training set. $R$ matrix is a highly "sparse" matrix.
+   
+2. Then we find the $K$ nearest neighbors of the user $U_{a}$ in the training data set i.e. we look for rows in $R$ that most similar to the user $U_{a}$.
+   
+3. Then we average the ratings of the $K$ neighbors (who have rated the item $i$) and output that as rating prediction $R_{ai}$ of user $U_{a}$ for item $i$. In the simplest form, the rating $R_{ai}$ is given by: 
+$$
+R_{ai} = \frac{\Sigma_{u \in N(a)} R_{ui}}{|N(a)|}
+$$
+Where $N(a)$ represents the $K$ nearest neighbors of $U_a$ that have rated item $i$.
+
+### UBCF Model Parameters
+The UBCF model is influenced by the following key parameters. The values of these 
+parameters are determined using cross validation method for a data set.
+
+####  K (nearest neighbors)
+Determines the number of neighbors to consider for making a prediction.
+The $K$ nearest neighbors of user $U_a$ are determined based on a similarity measure 
+(see below). The larger the $K$ value, longer it takes to train and make predictions 
+but predictions are robust and smaller $K$ values are subject to over fitting.
+
+#### Similarity measure
+Determines how to compute similarity between 2 users, typical measures 
+used are $cosine$ distance or $pearson$ correlation coefficient between the vector 
+representations $U_a$ i.e the rows in the ratings matrix $R$.
+
+$$
+cosine(u,a) = \frac{a.b}{||a||_2 * ||b||_2}
+$$
+where $||a||_2$ is the l2 norm of vector.
+
+$$
+pearson(u,a) = \frac{\Sigma_{i \in I_a \cap I_u} (u_i-\overline{u})(a_i-\overline{a})}{\hat{\sigma_a}*\hat{\sigma_u}}
+$$
+where $\overline{a}$ and $\overline{u}$ are average rating for users $a$ and $b$ and $\hat{\sigma_a}$
+and $\hat{\sigma_u}$ are estimated standard deviations of ratings of $u$ and $a$.
+
+#### Weighted vs. simple averaging
+The problem with simple averaging above is that it give equal importance to ratings 
+of all neighbors. A small variation to that is to give higher weight to ratings 
+of neibours that are closer to active user than far ones. So the weighed prediction
+takes the form
+$$
+R_{ai} = \frac{\Sigma_{u \in N(a)} s(a,u) * R_{ui}}{\Sigma_{u \in N(a)}s(a,u)}
+$$
+Where $s(a,u)$ is the similarity measure between users $a$ and $u$.
+
+#### Normalize
+Normalizing helps in removing bias from the user's ratings e.g. user's giving consistently 
+high rating to all movies they rate. There are 2 options to normalize ratings, one is $center$ i.e to 
+subtract mean from all the user's rating i.e $u_a - \overline{u_a}$ and other is to 
+compute $Z-score$ i.e subtract mean and divide by standard deviation of user's ratings.
+
+#### Time and Space Complexity of UBCF
+Consider N as the number of unique users, I as number of unique items and K as number 
+of nearest neighbors.
+
+1. Training time complexity is $O(N^2 * I * K)$
+
+2. Prediction complexity is $O(K)$ for one prediction.
+
+3. Space complexity is $O(N * K)$
+
+
+### UCBF Evaluation
+
+#### Parameter Settings For Our Evluation
+For our evaluation we set the UBCF model parameters to the following values.
+1. Set <b>normalize = "Z-score"</b> to remove bias and standardize ratings to unit variance.
+2. Set <b>method = "cosine"</b> we set the similarity measure to cosine
+3. Set <b>nn = 1000</b> based on the findings in the state of the art evaluation of collaborative filtering algorithms MAE was lowest for nn between 800 and 1500.
+4. Set <b>weighted = TRUE</b> this is 2 implications, it gives higher weight to users ratings that more similar to current user and also whose ratings have higher deviation from their mean rating.
+
+#### Setup The Ratings Matrix
+First, we setup sparse ratings matrix that will be used as input 
+to recommendation algorithm.
+
+```{r echo=TRUE}
+# we don't need the timestamp column
+ratings$Timestamp = NULL
+
+i = paste0('u', ratings$UserID)
+j = paste0('m', ratings$MovieID)
+x = ratings$Rating
+tmp = data.frame(i, j, x, stringsAsFactors = T)
+sparseMatrix = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
+rownames(sparseMatrix) = levels(tmp$i)
+colnames(sparseMatrix) = levels(tmp$j)
+
+Rmatrix = new('realRatingMatrix', data = sparseMatrix)
+```
+
+#### Compute RMSE
+Next we create a UBCF recommender and an evaluation scheme. We use the "split"
+evaluation scheme, where the training data is randomly split between 
+a training set and test set. In our case we use 90-10 train-test split.
+
+In test set evaluation we set given=15, meaning for test set users we 
+input 15 rated items of a user to the algorithm to get predicted ratings 
+for the rest of the items.
+
+We then use the RMSE metric to compute the overall prediction error 
+on the test set under the evaluation scheme. 
+
+We perform this over 10 iterations as follows:
+
+```{r echo=TRUE, eval=FALSE}
+ubcf_rmse = rep(0, 10)
+
+for (i in 1:10) {
+  
+  UBCF_Eval <- evaluationScheme(Rmatrix, method="split", train=0.9, 
+                        given=15, goodRating=5)
+  
+  UBCF_Recommender = Recommender(getData(UBCF_Eval, "train"), "UBCF", 
+                         parameter = list(
+                           normalize = 'Z-score',
+                           method = 'cosine',
+                           nn = 1000,
+                           weighted = TRUE
+                         ))
+  
+  # Make predictions on the test set using UBCF recommender.
+  UBCF_ratings_prediction = predict(UBCF_Recommender, 
+                                    getData(UBCF_Eval, "known"), 
+                                    type="ratings")
+  
+  # Measure accuracy on the held out (unknown) movies.
+  UBCF_rat_pred_accuracy = calcPredictionAccuracy(UBCF_ratings_prediction, 
+                                                  getData(UBCF_Eval, "unknown"))
+  
+  ubcf_rmse[i] = UBCF_rat_pred_accuracy["RMSE"]
+}
+
+rmse_table = data.frame(Iteration = c(1:10), RMSE = ubcf_rmse)
+rmse_table
+```
+
+#### Missing Predictions (NA values)
+UBCF can predict NA for a given item under following situations.
+
+1. No user has rated the item.
+
+2. A user has no neighbors (if a threshold is used to determine nearest neighbor).
+
+Under these situations we can use either of following schemes to predict the ratings.
+1. Use the average rating for the item from all the users (i.e. colMeans(RMatrix))
+
+2. Or use the average rating of the user across all the movies he has rated (i.e. rowMeans())
+
+3. It is still possible to get an NA after (1) or (2) in that case we fixed default value.
+
+```{r echo=TRUE,eval=FALSE}
+# using approach #2 in this case.
+userAvgRating = rowMeans(Rmatrix)
+length(userAvgRating)
+
+testUsers = getData(UBCF_Eval, "known")
+dim(testUsers)
+
+userPredictions = predict(UBCF_Recommender, testUsers, type="ratings")
+userPredList = as(userPredictions, "list")
+
+for (u in names(userPredList)) {
+  for (m in 1:length(userPredList[[u]])) {
+    if (is.na(userPredList[[u]][m])) {
+      # assign the average rating of the user.
+      userPredList[[u]][m] = ifelse(is.na(userAvgRating[u]), 2.5, userAvgRating[u])
+    }
+  } 
+}
+```
+
+Note: We did not implement the above in our evaluation code because we were not 
+sure how this would interfere with the in-built evaluationScheme from recommenderlab.
+Specifically we were not sure which NA item ratings to replace in the predictions 
+because it was not clear which items were given (our case given=15) to prediction vs. 
+used for accuracy evaluation by the built-in evaluationScheme.
+
+## CF Algorithm 2: Item Based Collobaritive Filtering
+The second CF algorithm we evaluate is Item Based Collaborative Filtering (IBCF). 
+IBCF is based on the philosophy that users will provide similar ratings 
+to similar objects. So at a high level, IBCF predicts user's rating by taking 
+a weighted average of K most similar items that the user has already rated 
+to the new item being considered.
+
+One of the important intermediate steps when training IBCF model is computation 
+of item-item similarity matrix. The time complexity of this procedure is $O(I^2)$ 
+but the space complexity is smaller ($O(I*K)$) because we only store K most 
+similar items for each item.
+
+IBCF algorithm makes ratings prediction $R_{ai}$ of user $a$ for item 
+$i$ based on the following equation:
+
+$$
+R_{ai} = \frac{\Sigma_{j \in S(i) \cap \{l:R_{al}\ !=\  na\}}S(i,j) * R_{aj}}{\Sigma_{j \in S(i) \cap \{l:R_{al}\ !=\  na\}}S(i,j)}
+$$
+Where $S(i,j)$ is the similarity measure for items $i$ and $j$ and $R_{aj}$ is the rating of user $a$ of item $j$.
+
+### IBCF Model Parameters
+The model parameters of ICBF are similar to UCBF. 
+We quickly mention them here and note any semantic differences.
+
+#### Number of Similar Items (K)
+Similar to nearest neighbors parameter in UCBF. Determines the number of similar items (to current item)
+to consider when averaging the ratings.
+
+#### Similarity Measure
+Similar to the measures described in UCBF section. The popular measures are $cosine$ 
+and $pearson$ correlation coefficient.
+
+#### Normalization
+Again, similar to the description in UBCF section. The available options are $center$ and $Z-score$.
+
+#### Time and Space Complexity
+Consider N as number of unique users, I as number of unique items and K as number 
+of nearest neighbors.
+
+1. Training time complexity is $O(I^2 * N * K)$
+
+2. Prediction complexity is $O(K)$ for one prediction.
+
+3. Space complexity is $O(I * K)$
+
+### IBCF Evaluation
+
+#### Parameter Settings For Our Evluation
+For our evaluation we set the parameter values to the following values.
+
+1. Set <b>normalize = "Z-score" </b> to remove bias and standardize ratings to unit variance.
+
+2. Set <b>method = "pearson"</b> we use $pearson$ because the state of the art CF algorithm review showed it performed better than $cosine$ for IBCF.
+
+3. Set <b>K = 1000</b> based on the findings in the state of the art CF algorithm review, MAE was lowest for K>= 1000 for $pearson$.
+
+#### Compute Ratings Matrix
+
+This was already done above in UCBF.
+```{r echo=TRUE, eval=TRUE}
+dim(Rmatrix)
+```
+
+#### Compute RMSE
+Next, we create a ICBF recommender with above parameter settings and use the
+same evaluation scheme as above i.e we use the "split" method to create train-test 
+split of data set with split ratio of 90% -10% respectively. When making predictions
+on the test set, we provide provide 15 rated items for each user to algorithm and get 
+predictions for the rest and use the RMSE metric to measure the prediction 
+performance.
+
+We perform 10 iterations of these steps and report the RMSE 
+of each iteration as below.
+
+```{r echo=TRUE,eval=FALSE}
+
+ibcf_rmse = rep(0, 10)
+
+for (i in 1:10) {
+  
+  IBCF_Eval <- evaluationScheme(Rmatrix, method="split", train=0.9, 
+                      given=15, 
+                      goodRating=5)
+  
+  IBCF_Rec = Recommender(getData(IBCF_Eval, "train"), "IBCF", 
+                       parameter = list(
+                         normalize = 'Z-score',
+                         method = 'pearson',
+                         k = 1000
+                       ))
+  
+  # Make predictions on the test set using UBCF recommender.
+  IBCF_ratings_prediction = predict(IBCF_Rec, getData(IBCF_Eval, "known"), 
+                                  type="ratings")
+  
+  # Measure accuracy on the held out movies.
+  IBCF_rat_pred_accuracy = calcPredictionAccuracy(IBCF_ratings_prediction, 
+                                                getData(IBCF_Eval, "unknown"))
+  IBCF_rat_pred_accuracy
+  
+  ibcf_rmse[i] = IBCF_rat_pred_accuracy["RMSE"]
+}
+
+ibcf_rmse_table = data.frame(Iteration = c(1:10), RMSE = ibcf_rmse)
+ibcf_rmse_table
+```
+
+#### Missing Predictions (NA values)
+
+IBCF can predict NA for a given item under following situations.
+
+1. Algorithm could not find similar items to the item under consideration.
+
+2. A user has not rated any item before.
+
+We can use the same scheme as in IBCF to predict the ratings.
+
+1. Use the average rating for the item from all the users (i.e. colMeans(RMatrix))
+
+2. Or use the average rating of the user across all the movies he has rated (i.e. rowMeans())
+
+3. It is still possible to get an NA after (1) or (2) in that case we seed fixed default value.
+
+```{r echo=TRUE, eval=FALSE}
+# here we use the approach #1
+AvgItemRating = colMeans(Rmatrix)
+length(userItemRating)
+
+testUsers = getData(IBCF_Eval, "known")
+dim(testUsers)
+
+userPredictions = predict(IBCF_Rec, testUsers, type="ratings")
+userPredList = as(userPredictions, "list")
+
+for (u in names(userPredList)) {
+  for (m in 1:length(userPredList[[u]])) {
+    if (is.na(userPredList[[u]][m])) {
+      # assign the average rating of the user.
+      userPredList[[u]][m] = ifelse(is.na(AvgItemRating[m]), 2.5, AvgItemRating[m])
+    }
+  } 
+}
+```
+Note: We did not implement the above in our evaluation code because we were not 
+sure how this would interfere with the in-built evaluationScheme from recommenderlab.
+Specifically we were not sure which NA item ratings to replace in our predictions 
+because it was not clear which items were given (our case given=15) to prediction vs. 
+accuracy evaluation in calcPredictionAccuracy.
+

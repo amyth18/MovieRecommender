@@ -8,6 +8,11 @@ library(shinyjs)
 
 source('functions/helpers.R')
 
+genreList = c("Animation", "Children's", "Comedy", "Adventure", "Fantasy", 
+              "Romance", "Drama" , "Action", "Crime", "Thriller", "Horror", 
+              "Sci-Fi", "Documentary", "War", "Musical", "Mystery", "Film-Noir",
+              "Western")
+
 shinyUI(
     dashboardPage(
           skin = "blue",
@@ -24,7 +29,7 @@ shinyUI(
               tabItems(
                 tabItem(tabName = "movies",
                   fluidRow(
-                    box(width = 12, title = "What Movies do you like?",
+                    box(id="select-movies", width = 12, title = "Tell us what movies do you like?",
                         status = "info", solidHeader = TRUE, collapsible = TRUE,
                         div(class = "rateitems",
                             uiOutput('ratings')
@@ -47,12 +52,14 @@ shinyUI(
               ),
               tabItem(tabName = "genres",
                   fluidRow(
-                    box(width = 12, title = "Step 1: Select your favorite genre", 
+                    box(id="select-genre", width = 12, title = "Select your favorite genre", 
                         status = "info", solidHeader = TRUE, collapsible = TRUE,
-                        selectInput("genreChoice", h4("What do you like to watch?"), 
-                                    choices = list("Drama" = "Drama", 
-                                                   "Thriller" = "Thriller",
-                                                   "Comedy" = "Comedy"), selected = "Drama"),
+                        selectInput(
+                          "genreChoice",
+                          label = h4("What do you like to watch?"),
+                          choices = genreList,
+                          selected = "Drama"
+                        ),
                         withBusyIndicatorUI(
                           actionButton("btn2", "Click here to get our recommendations", 
                                        class = "btn-warning")
@@ -64,7 +71,7 @@ shinyUI(
                     useShinyjs(),
                     box(
                       width = 12, status = "info", solidHeader = TRUE,
-                      title = "Our Recommendations For Selected Genre",
+                      title = "Our recommendations for selected genre",
                       tableOutput("genre_results")
                     )
                   )

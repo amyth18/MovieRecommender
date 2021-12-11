@@ -73,7 +73,6 @@ getUniqueGenres = function(movies) {
 
 getHighestRatedMoviesByGenre = function(movies, ratings, genreChosen) {
   
-  print(genreChosen)
   movies_expanded = movies %>% separate_rows(Genres, sep = '[|]')
   
   movies_f1score = 

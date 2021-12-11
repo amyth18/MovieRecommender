@@ -41,10 +41,6 @@ ubcfRecommender = trainRecommender(ratings, "UBCF")
 
 shinyServer(function(input, output, session) {
   
-  output$selecteGenre <- renderText({ 
-    paste("You have selected", input$genreChoice)
-  })
-  
   ### Collaborative filtering based recommendation. ###
   
   # show the movies to be rated by the user.
@@ -73,9 +69,7 @@ shinyServer(function(input, output, session) {
   ubcfBasedRecom <- eventReactive(input$btn1, {
     withBusyIndicatorServer("btn1", { # showing the busy indicator
       # hide the rating container
-      useShinyjs()
-      jsCode <- "document.querySelector('[data-widget=collapse]').click();"
-      runjs(jsCode)
+      hide(id = "select-movies", anim = TRUE)
       
       # get the user's rating data
       value_list <- reactiveValuesToList(input)
@@ -85,12 +79,7 @@ shinyServer(function(input, output, session) {
       # TODO: get predicted ratings?
       # user_results = (1:10)/2
       ucfgPredMovieIds = getRecommendations(ubcfRecommender, user_ratings)
-      print(ucfgPredMovieIds)
       gc(verbose = FALSE)
-      #recom_results1 <- data.table(Rank = 1:10, 
-      #                             MovieID = movies$MovieID[user_predicted_ids], 
-      #                             Title = movies$Title[user_predicted_ids], 
-      #                             Predicted_rating =  user_results)
       return(ucfgPredMovieIds)
     }) # still busy
   }) # clicked on button
@@ -127,17 +116,11 @@ shinyServer(function(input, output, session) {
   
   genreBasedRecom <- eventReactive(input$btn2, {
     withBusyIndicatorServer("btn", { # showing the busy indicator
-      # hide the rating container
-      useShinyjs()
-      jsCode <- "document.querySelector('[data-widget=collapse]').click();"
-      runjs(jsCode)
-      
       # get the user's rating data
       genre <- input$genreChoice
       print(genre)
       # get top#10 movies for the selected genre.
       top10MovieIdsByGenre = getHighestRatedMoviesByGenre(movies, ratings, genre)
-      print(top10MovieIdsByGenre)
       gc(verbose = FALSE)
       # recom_results_for_genre <- data.table(Rank = 1:10, 
       #                            MovieID = movies$MovieID[movie_ids], 
@@ -153,14 +136,9 @@ shinyServer(function(input, output, session) {
     num_movies <- 5
     highestRateMovieIds <- genreBasedRecom()
     
-    print("top#10 movies for genre")
-    print(highestRateMovieIds)
-    
     lapply(1:num_rows, function(i) {
       list(fluidRow(lapply(1:num_movies, function(j) {
         mIdx = highestRateMovieIds[(i - 1) * num_movies + j]
-        print(movies$Title[mIdx])
-        print(movies$image_url[mIdx])
         
         box(width = 2, status = "success", solidHeader = TRUE, 
             title = paste0("Rank ", (i - 1) * num_movies + j),

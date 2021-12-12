@@ -5,9 +5,9 @@ account: ameed2
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 5304804
-bundleId: 5355191
+bundleId: 5361579
 url: https://ameed2.shinyapps.io/MovieRecommender/
-when: 1639137112.55381
-lastSyncTime: 1639137112.55382
+when: 1639287682.01697
+lastSyncTime: 1639287682.01699
 asMultiple: FALSE
 asStatic: FALSE

@@ -304,7 +304,7 @@ on the test set under the evaluation scheme.
 
 We perform this over 10 iterations as follows:
 
-```{r echo=TRUE, eval=FALSE}
+```{r echo=TRUE}
 ubcf_rmse = rep(0, 10)
 
 for (i in 1:10) {
@@ -350,7 +350,7 @@ Under these situations we can use either of following schemes to predict the rat
 
 3. It is still possible to get an NA after (1) or (2) in that case we fixed default value.
 
-```{r echo=TRUE,eval=FALSE}
+```{r echo=TRUE}
 # using approach #2 in this case.
 userAvgRating = rowMeans(Rmatrix)
 length(userAvgRating)
@@ -436,7 +436,7 @@ For our evaluation we set the parameter values to the following values.
 #### Compute Ratings Matrix
 
 This was already done above in UCBF.
-```{r echo=TRUE, eval=TRUE}
+```{r echo=TRUE}
 dim(Rmatrix)
 ```
 
@@ -451,7 +451,7 @@ performance.
 We perform 10 iterations of these steps and report the RMSE 
 of each iteration as below.
 
-```{r echo=TRUE,eval=FALSE}
+```{r echo=TRUE}
 
 ibcf_rmse = rep(0, 10)
 
@@ -500,10 +500,10 @@ We can use the same scheme as in IBCF to predict the ratings.
 
 3. It is still possible to get an NA after (1) or (2) in that case we seed fixed default value.
 
-```{r echo=TRUE, eval=FALSE}
+```{r echo=TRUE}
 # here we use the approach #1
 AvgItemRating = colMeans(Rmatrix)
-length(userItemRating)
+length(AvgItemRating)
 
 testUsers = getData(IBCF_Eval, "known")
 dim(testUsers)
@@ -525,4 +525,3 @@ sure how this would interfere with the in-built evaluationScheme from recommende
 Specifically we were not sure which NA item ratings to replace in our predictions 
 because it was not clear which items were given (our case given=15) to prediction vs. 
 accuracy evaluation in calcPredictionAccuracy.
-

@@ -382,6 +382,7 @@ head(highest_rated_movies_by_genre)</code></pre>
 ## 6 Action    2028 Saving Private Ryan (1998)               2653      4.34    8.66</code></pre>
 <p>Now, we make top#5 movie recommendations based on highest rated movies (based on F1 score) for user preferred genre as follows:</p>
 <pre class="r"><code># Top 5 recommendations for Drama.
+
 user_genre_preference = &quot;Drama&quot;
 highest_rated_movies_by_genre[which(highest_rated_movies_by_genre$Genres == 
                                     user_genre_preference),][1:5, c(&#39;Title&#39;, &#39;F1Score&#39;)]</code></pre>
@@ -394,6 +395,7 @@ highest_rated_movies_by_genre[which(highest_rated_movies_by_genre$Genres ==
 ## 4 Schindler&#39;s List (1993)                                                9.00
 ## 5 To Kill a Mockingbird (1962)                                           8.81</code></pre>
 <pre class="r"><code># Top 5 recommendations for Comedy
+
 user_genre_preference = &quot;Comedy&quot;
 highest_rated_movies_by_genre[which(highest_rated_movies_by_genre$Genres == 
                                     user_genre_preference),][1:5, c(&#39;Title&#39;, &#39;F1Score&#39;)]</code></pre>
@@ -514,6 +516,17 @@ for (i in 1:10) {
 
 rmse_table = data.frame(Iteration = c(1:10), RMSE = ubcf_rmse)
 rmse_table</code></pre>
+<pre><code>##    Iteration      RMSE
+## 1          1 0.9928354
+## 2          2 0.9851737
+## 3          3 0.9626094
+## 4          4 0.9623926
+## 5          5 0.9900436
+## 6          6 0.9919255
+## 7          7 1.1353144
+## 8          8 0.9944327
+## 9          9 0.9911666
+## 10        10 0.9566884</code></pre>
 </div>
 <div id="missing-predictions-na-values" class="section level4" number="3.1.2.4">
 <h4 number="3.1.2.4"><span class="header-section-number">3.1.2.4</span> Missing Predictions (NA values)</h4>
@@ -529,12 +542,12 @@ rmse_table</code></pre>
 </ol>
 <pre class="r"><code># using approach #2 in this case.
 userAvgRating = rowMeans(Rmatrix)
-length(userAvgRating)
-
-testUsers = getData(UBCF_Eval, &quot;known&quot;)
-dim(testUsers)
-
-userPredictions = predict(UBCF_Recommender, testUsers, type=&quot;ratings&quot;)
+length(userAvgRating)</code></pre>
+<pre><code>## [1] 6040</code></pre>
+<pre class="r"><code>testUsers = getData(UBCF_Eval, &quot;known&quot;)
+dim(testUsers)</code></pre>
+<pre><code>## [1]  604 3706</code></pre>
+<pre class="r"><code>userPredictions = predict(UBCF_Recommender, testUsers, type=&quot;ratings&quot;)
 userPredList = as(userPredictions, &quot;list&quot;)
 
 for (u in names(userPredList)) {
@@ -632,6 +645,17 @@ for (i in 1:10) {
 
 ibcf_rmse_table = data.frame(Iteration = c(1:10), RMSE = ibcf_rmse)
 ibcf_rmse_table</code></pre>
+<pre><code>##    Iteration     RMSE
+## 1          1 1.154837
+## 2          2 1.147085
+## 3          3 1.136145
+## 4          4 1.122167
+## 5          5 1.117188
+## 6          6 1.122422
+## 7          7 1.127544
+## 8          8 1.139927
+## 9          9 1.145311
+## 10        10 1.098103</code></pre>
 </div>
 <div id="missing-predictions-na-values-1" class="section level4" number="3.2.2.4">
 <h4 number="3.2.2.4"><span class="header-section-number">3.2.2.4</span> Missing Predictions (NA values)</h4>
@@ -648,12 +672,12 @@ ibcf_rmse_table</code></pre>
 </ol>
 <pre class="r"><code># here we use the approach #1
 AvgItemRating = colMeans(Rmatrix)
-length(userItemRating)
-
-testUsers = getData(IBCF_Eval, &quot;known&quot;)
-dim(testUsers)
-
-userPredictions = predict(IBCF_Rec, testUsers, type=&quot;ratings&quot;)
+length(AvgItemRating)</code></pre>
+<pre><code>## [1] 3706</code></pre>
+<pre class="r"><code>testUsers = getData(IBCF_Eval, &quot;known&quot;)
+dim(testUsers)</code></pre>
+<pre><code>## [1]  604 3706</code></pre>
+<pre class="r"><code>userPredictions = predict(IBCF_Rec, testUsers, type=&quot;ratings&quot;)
 userPredList = as(userPredictions, &quot;list&quot;)
 
 for (u in names(userPredList)) {

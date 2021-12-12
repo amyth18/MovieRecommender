@@ -45,7 +45,7 @@ shinyUI(
                     useShinyjs(),
                     box(
                       width = 12, status = "info", solidHeader = TRUE,
-                      title = "Our Recommendations",
+                      title = "Our recommendations",
                       tableOutput("results")
                     )
                   ) 
@@ -71,7 +71,7 @@ shinyUI(
                     useShinyjs(),
                     box(
                       width = 12, status = "info", solidHeader = TRUE,
-                      title = "Our recommendations for selected genre",
+                      title = "Our recommendations",
                       tableOutput("genre_results")
                     )
                   )

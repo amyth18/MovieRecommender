@@ -1,7 +1,6 @@
 ---
 title: "Recommender Systems Evaluation"
-author: "Ameet Deulgaonkar"
-email: "ameetd2@illinois.edu"
+author: "Ameet Deulgaonkar (ameetd2@illinois.edu)"
 date: "10/12/2021"
 output: 
   html_document:

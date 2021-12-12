@@ -7,7 +7,14 @@ get_user_ratings = function(value_list) {
   dat = dat[!is.null(Rating) & !is.na(MovieID)]
   dat[Rating == " ", Rating := 0]
   dat[, ':=' (MovieID = as.numeric(MovieID), Rating = as.numeric(Rating))]
-  dat = dat[Rating > 0]
+  if (nrow(dat[Rating > 0]) == 0) {
+    # no ratings provided by the user we give all movies 
+    # a rating of 2.5
+    dat[,2] = 2.5
+  } else {
+    dat = dat[Rating > 0]  
+  }
+  return(dat)
 }
 
 # read in data
@@ -74,11 +81,9 @@ shinyServer(function(input, output, session) {
       # get the user's rating data
       value_list <- reactiveValuesToList(input)
       user_ratings <- get_user_ratings(value_list)
-      print("input:")
-      print(user_ratings)
-      # TODO: get predicted ratings?
-      # user_results = (1:10)/2
+      # print(user_ratings)
       ucfgPredMovieIds = getRecommendations(ubcfRecommender, user_ratings)
+      print(ucfgPredMovieIds)
       gc(verbose = FALSE)
       return(ucfgPredMovieIds)
     }) # still busy
@@ -86,11 +91,9 @@ shinyServer(function(input, output, session) {
   
   # display the recommendations based on rated movies
   output$results <- renderUI({
-    print("in movies results")
     num_rows <- 2
     num_movies <- 5
     ubcfRecMovieIds <- ubcfBasedRecom()
-    print(ubcfRecMovieIds)
     
     lapply(1:num_rows, function(i) {
       list(fluidRow(lapply(1:num_movies, function(j) {
